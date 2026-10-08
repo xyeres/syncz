@@ -1,7 +1,7 @@
 import { isOwner, type CollaboratorId, type VideoId } from '../shared/ids'
 import { fail, failAll, ok, type Reason, type Result } from '../shared/result'
 import type { Collaborator } from './collaborator'
-import type { Email } from './email'
+import type { Email } from '../shared/email'
 import type { Split } from './split'
 
 const OK: Result<void> = ok(undefined)

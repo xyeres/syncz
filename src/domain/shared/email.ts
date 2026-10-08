@@ -1,4 +1,4 @@
-import { fail, ok, type Result } from '../shared/result'
+import { fail, ok, type Result } from './result'
 
 /** A trimmed, valid email. `normalized` is lower-cased for uniqueness (COL-1/2). */
 export type Email = Readonly<{ value: string; normalized: string }>

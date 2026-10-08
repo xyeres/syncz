@@ -1,6 +1,6 @@
 import type { AccountId, ChannelId } from '../shared/ids'
 import { fail, ok, type Result } from '../shared/result'
-import type { Email } from '../sharing/email'
+import type { Email } from '../shared/email'
 
 export type AccountInput = Readonly<{
   id: AccountId

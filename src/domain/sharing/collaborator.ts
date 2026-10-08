@@ -2,7 +2,7 @@ import type { ChannelId, CollaboratorId } from '../shared/ids'
 import type { Meta } from '../shared/meta'
 import type { IsoDateTime } from '../shared/numbers'
 import { collect, fail, failAll, ok, type Result } from '../shared/result'
-import { Email } from './email'
+import { Email } from '../shared/email'
 import { Role, type RoleInput } from './role'
 
 /** The editable part of a collaborator, as raw form input. */

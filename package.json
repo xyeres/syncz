@@ -9,7 +9,9 @@
     "lint": "eslint",
     "test": "jest",
     "typecheck:domain": "tsc --noEmit -p src/domain/tsconfig.json",
-    "check:deps": "node scripts/check-domain-imports.mjs"
+    "check:deps": "node scripts/check-domain-imports.mjs",
+    "test:coverage:domain": "jest --selectProjects domain --coverage --coverageReporters=json",
+    "crap:domain": "pnpm test:coverage:domain && tsx scripts/crap-detector.ts --path 'src/domain/**/*.ts' --threshold 5"
   },
   "dependencies": {
     "next": "16.4.0",
@@ -31,6 +33,7 @@
     "jest-environment-jsdom": "^30.5.2",
     "tailwindcss": "^4",
     "ts-node": "^10.9.2",
+    "tsx": "^4.23.15",
     "typescript": "^5"
   },
   "packageManager": "pnpm@10.28.2"

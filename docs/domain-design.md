@@ -63,6 +63,7 @@ export interface Meta { readonly id: EntryId; readonly at: IsoDateTime }
 | **Money / percent** | Use `Cents` and `Bps`, both branded integers. Floats and dollars never appear in the domain. Formatting happens only in the UI. |
 | **Owner** | The owner is a *party* (`OWNER_ID`), not a `Collaborator`. `PartyId = OwnerId \| CollaboratorId`, so the compiler stops an owner being passed where a `CollaboratorId` is required (half of COL-7). |
 | **Persistence** | Each aggregate has `toSnapshot(): XSnapshot` (a plain readonly JSON type) and `static fromSnapshot(s: XSnapshot)`. Repositories store snapshots. |
+| **Reason messages** | Aggregates that only know ids (e.g. `Split` for SPL-3/SPL-8) name parties by id in `message`, and set the optional `partyId` on the `Reason`. The **application layer** rewrites these messages with display names (collaborator name, "You") before they reach the UI. The domain never gets a name-lookup dependency. *(Implement `Reason.partyId` + the presenter in Step 4.)* |
 | **Domain events** | **None.** The report activity log is a *projection* that merges the report's own append-only `activity` with the append-only ledger entries. No cross-aggregate event plumbing is needed. |
 
 ---
@@ -131,7 +132,7 @@ Contexts are **folders**, not packages. A tiny **shared kernel** (`domain/shared
 | VO | Where | Type / factory | Responsibility |
 |---|---|---|---|
 | `Period` | shared | `Period` (branded string). `Period.parse(s): Result<Period>`, `isEndedBy(p, today: IsoDate): boolean`, `latestReportable(today): Period` | A calendar month (REP-2). |
-| `Email` | Sharing | `{ value: string; normalized: string }`. `Email.create(raw): Result<Email>` | Trimmed and valid. `normalized` is lower-cased for uniqueness (COL-1/2). |
+| `Email` | shared | `{ value: string; normalized: string }`. `Email.create(raw): Result<Email>` | Trimmed and valid. `normalized` is lower-cased for uniqueness (COL-1/2). |
 | `Role` | Sharing | `{ kind: PredefinedRole } \| { kind: 'other'; label: string }`. `Role.create(kind, label?)` | `ROLES` const tuple, or Other with a label (COL-3). |
 | `Share` | Sharing | `{ partyId: PartyId; bps: Bps }`. `Share.create(partyId, bps: number)` | Integer bps (SPL-2). |
 | `Video` | Channel | `{ id: VideoId; channelId: ChannelId; title: string; publishedAt: IsoDate }` | Read-only, produced by the ACL. |
@@ -412,7 +413,7 @@ Legend: **AM** = aggregate method · **VO** = VO factory · **DS** = domain serv
 | SPL-5 | AM `Split.create/revise` | Unique `partyId`s. |
 | SPL-6 | AM `Split.create/revise` | Non-blank `name.trim()` and `videoIds.length ≥ 1`. |
 | SPL-7 | DS `checkVideoExclusivity` ← AP `saveSplit` | The use case loads all channel splits except this one. |
-| SPL-8 | DS `checkSplitReferences` ← AP `saveSplit` | Video ids come from `ChannelCatalog.listVideos`. Collaborators must exist and not be soft-deleted. |
+| SPL-8 | DS `checkSplitReferences` ← AP `saveSplit` | Video ids come from `ChannelCatalog.listVideos`. Collaborators must exist and not be soft-deleted. Messages name parties by id; the application layer substitutes names (see §0 Reason messages). |
 | SPL-9 | S + AM `MonthlyReport.generate/recalculate` | `Split` has no effective-date fields. A revision applies one `SplitSnapshot[]` to the whole period. |
 | SPL-10 | S (snapshots) + AP | A revision stores copies (`SplitSnapshot`, `AllocationLine`), never references. `recalculateReport` is the only use case that writes a report after generation. `saveSplit`/`deleteSplit` never receive the report repository. |
 | SPL-11 | AP `deleteSplit` (no guard) + S | Hard delete. SPL-7 checks against current splits, so videos are freed. Revisions keep `splitName`. |
@@ -460,9 +461,9 @@ Legend: **AM** = aggregate method · **VO** = VO factory · **DS** = domain serv
 ├── scripts/check-domain-imports.mjs  # dependency-rule check (see below)
 └── src/
     ├── domain/                       # PURE TS. imports only from src/domain/**
-    │   ├── shared/   ids.ts  numbers.ts  period.ts  result.ts  meta.ts  index.ts
+    │   ├── shared/   ids.ts  numbers.ts  period.ts  result.ts  meta.ts  email.ts  index.ts
     │   ├── channel/  account.ts  video.ts  index.ts
-    │   ├── sharing/  share.ts  split.ts  email.ts  role.ts  collaborator.ts  policies.ts  index.ts
+    │   ├── sharing/  share.ts  split.ts  role.ts  collaborator.ts  policies.ts  index.ts
     │   └── reporting/
     │       ├── frozen-revenue.ts  snapshots.ts  allocate.ts
     │       ├── monthly-report.ts  payment-ledger.ts
@@ -551,6 +552,16 @@ src/domain/reporting/monthly-report.test.ts   src/domain/reporting/payment-ledge
 src/domain/reporting/policies.test.ts         src/domain/reporting/projections.test.ts
 src/domain/test-fixtures.ts               # builders: aSplit(), aReport(), meta(n), ids via as-casts
 ```
+
+**Quality gates (definition of done for every domain step):**
+
+| Command | Must |
+|---|---|
+| `pnpm test` | pass |
+| `pnpm typecheck:domain` | be clean, with every `@ts-expect-error` still used |
+| `pnpm check:deps` | pass (also enforces the bounded-context import rules: `channel` ↛ `sharing`/`reporting`, `sharing` ↛ `reporting`, `reporting` ↛ `sharing`) |
+| `pnpm crap:domain` | report **no function with CRAP > 5** in implementation files. Refactor (extract small validators, use lookup tables, split branches) rather than suppress. `test-fixtures.ts` is exempt. |
+| `pnpm lint`, `pnpm build` | pass |
 
 Helper: `expectRejected(result, 'SPL-3')` asserts `!result.ok` and that some reason has that code. Every rejection test also asserts that the original aggregate is unchanged (`toEqual` on `toSnapshot()`). Compile-time guarantees (marked **T** in §4) can be pinned with `// @ts-expect-error` lines inside the test files. `tsc` then fails if a guarantee is lost.
 
@@ -646,7 +657,7 @@ Helper: `expectRejected(result, 'SPL-3')` asserts `!result.ok` and that some rea
 | `lib/ledger.js` `freezeRevenue`, `frozenVideos`, `revenueFor` | `reporting/frozen-revenue.ts` | Yes, cents only, plus title snapshots. |
 | `lib/payments.js` `openEntries`, `ledgerStatus`, `reportRows`, `reportTotals`, `recordsFor` | `PaymentLedger.openEntries`, `reporting/projections.ts` | **Yes.** Swap the stack-pop logic in `openEntries` for `reversesEntryId` matching. `STATUS_LABEL` stays in the UI. |
 | `lib/statements.js` `totalAtRevision`, `needsResend`, `statementLines` | `reporting/projections.ts` | Yes. Read from `revisions[]`. `printWithTitle` → `ui/` (uses `document`). |
-| `lib/collaborators.js` `EMAIL_RE`, `normalizeEmail`, `isValidEmail`, `emailConflict`, `validateCollaborator` | `sharing/email.ts`, `sharing/policies.ts`, `Collaborator.register/edit` | **Yes.** The owner email becomes a parameter. Add the COL-3 check against `ROLES` (moved from `components/CollaboratorForm.jsx`). |
+| `lib/collaborators.js` `EMAIL_RE`, `normalizeEmail`, `isValidEmail`, `emailConflict`, `validateCollaborator` | `shared/email.ts`, `sharing/policies.ts`, `Collaborator.register/edit` | **Yes.** The owner email becomes a parameter. Add the COL-3 check against `ROLES` (moved from `components/CollaboratorForm.jsx`). |
 | `lib/periods.js` | `shared/period.ts` | Rewrite to take `today: IsoDate` (it reads mock `TODAY` today). "Months with data" → `ChannelCatalog`. |
 | `lib/format.js`, `lib/router.js` | stay in `ui/` | Yes, they are UI only. |
 | `data/mock.js` | `infrastructure/seed/mock.ts` | Yes. `PALETTE`/colors become UI, keyed by `partyId`. `'me'` → `OWNER_ID` in the seed adapter. |
