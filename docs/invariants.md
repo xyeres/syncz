@@ -56,13 +56,13 @@ References: `ChannelId`, `CollaboratorId` (with snapshotted name/email), `VideoI
 2. **REP-2 [A]** A report covers exactly one calendar month that has already ended. The latest month that can be generated is always last month. No current or future months.
 3. **REP-3 [A]** Revenue is frozen when the month's report is first generated (Revision 1). Later revisions reuse the frozen revenue and never re-fetch it.
 4. **REP-4 [A]** All allocation lines in a revision (owner included) sum **exactly** to the frozen gross revenue, to the cent.
-5. **REP-5 [A]** A collaborator's per-video amount is `round(videoRevenue × bps / 10000)` cents. The owner absorbs any rounding remainder per video.
+5. **REP-5 [A]** A collaborator's per-video amount is `floor(videoRevenue × bps / 10000)` cents (always rounded down). The owner absorbs the remainder per video, so the owner's amount is never negative, even at 0%.
 6. **REP-6 [A]** A collaborator's amount due in a revision equals the sum of their per-video amounts.
 7. **REP-7 [A]** A revision's snapshot is immutable. Only Recalculate creates a new revision. Revision numbers start at 1 and increase by exactly 1. Prior revisions are never rewritten.
 8. **REP-8 [A]** A revision snapshots each collaborator's name and email as they were at that moment.
 9. **REP-9 [A]** The activity log is append-only.
 10. **REP-10 [A]** Reports cannot be deleted.
-11. **REP-11 [A]** A recalculation must change at least one allocation line. A recalculation that would produce identical lines is rejected, and no revision is created.
+11. **REP-11 [A]** A recalculation must change something: at least one party's amounts (due or per-video lines) or snapshotted details (name, email). A recalculation that would produce an identical revision is rejected, and no revision is created.
 
 ## Payments — root: `PaymentLedger` (one per collaborator per period)
 
@@ -104,6 +104,8 @@ References: `ReportId`, `CollaboratorId`
 | 2026-10-07 | Splits can be deleted at any time; deletion frees their videos and never alters existing reports. |
 | 2026-10-07 | No partial payments: "Mark paid" always records the full balance. |
 | 2026-10-07 | A recalculation must change at least one line (REP-11). |
+| 2026-10-07 | Collaborator amounts round down (floor); the owner absorbs the remainder and can never go negative (REP-5). |
+| 2026-10-07 | A name/email-only change counts as a change for REP-11, so corrected details can be issued as a new revision. The resend flag (STM-2) still compares amounts only. |
 | 2026-10-07 | "Mark sent" works for anyone ever listed on the report, so a $0 resend flag can be cleared. |
 | 2026-10-07 | Split drafts live on screen only; they are never persisted. |
 | 2026-10-07 | One channel per account; no unlink or switch for now. |

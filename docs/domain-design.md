@@ -428,13 +428,13 @@ Legend: **AM** = aggregate method · **VO** = VO factory · **DS** = domain serv
 | REP-2 | VO `Period.parse` + AM `MonthlyReport.generate(…, today)` | Valid `YYYY-MM` and `isEndedBy(period, today)`. "No revenue data" (catalog returned null) is rejected by AP `generateReport` with REP-2. |
 | REP-3 | AM `generate` + **T** | `FrozenRevenue` is built only in `generate`. `recalculate`'s signature has no revenue argument. |
 | REP-4 | DS `allocate` + AM assertion | The owner absorbs per-video remainders. `generate/recalculate` reject (REP-4) if `Σ dueCents ≠ grossOf(frozen)`; this is a defensive check. |
-| REP-5 | DS `allocate` | `Math.round(videoCents * bps / 10000)` per collaborator per video. The owner gets the rest. |
+| REP-5 | DS `allocate` | `Math.floor(videoCents * bps / 10000)` per collaborator per video. The owner gets the rest, which is never negative. |
 | REP-6 | DS `allocate` | `dueCents = Σ videos[].cents`. Not re-rounded. |
 | REP-7 | AM `recalculate` + S + **T** | Appends a `Revision` with `number = last + 1`. All revision fields are `readonly` and frozen. There is no edit/remove method. |
 | REP-8 | AM `generate/recalculate` | Stores the given `PartySnapshot`s. The use case builds them from current Collaborators + Account. |
 | REP-9 | AM (every `MonthlyReport` command) + S + **T** | `activity` is a `readonly` array that only grows via `[...activity, entry]`. The merged feed (`reportActivity`) is a projection over two append-only sources. |
 | REP-10 | S | There is no delete on the aggregate or in `MonthlyReportRepository`. |
-| REP-11 | AM `MonthlyReport.recalculate` | Computes the new lines and rejects (REP-11) if every party's `dueCents` and video lines equal the current revision's. No revision or activity entry is created. |
+| REP-11 | AM `MonthlyReport.recalculate` | Computes the new lines and rejects (REP-11) if every party's `dueCents`, video lines and `PartySnapshot` (name, email) equal the current revision's. A name/email-only change is accepted and creates a revision. No revision or activity entry is created on rejection. |
 | PAY-1 | AM + S + **T** | `entries` is a readonly array that only grows. There is no edit/delete method and no repository delete. |
 | PAY-2 | AM `markPaid` | `markPaid` is the only way to create a payment, and it only writes when the balance is > 0, so every payment amount is a positive integer. There is no arbitrary-amount payment command. |
 | PAY-3 | AM `PaymentLedger.reverse(target)` | The target must exist, have kind `payment \| settlement`, and not already be reversed. The reversal amount is `−target.amountCents`. UI "Undo" = `openEntries().at(-1)`. |
@@ -601,7 +601,7 @@ Helper: `expectRejected(result, 'SPL-3')` asserts `!result.ok` and that some rea
 
 ### FrozenRevenue / allocate
 - [ ] ACC-2 / REP-3 `FrozenRevenue.freeze` rejects non-integer or negative cents. The result is frozen.
-- [ ] REP-5 1001¢ at 3333 bps → collaborator 334¢; the owner absorbs the rest.
+- [ ] REP-5 1001¢ at 3333 bps → collaborator 333¢ (floor); the owner absorbs the rest. Owner 0 / 5000 / 5000 on 101¢ → 50 / 50, owner 1¢ (never negative).
 - [ ] REP-5 the remainder is absorbed per video, not per total (three videos with odd cents).
 - [ ] REP-4 Σ lines === gross across a table of fixed cases, including an owner at 0 bps.
 - [ ] REP-6 `dueCents === Σ videos[].cents` for every collaborator line.
@@ -619,7 +619,7 @@ Helper: `expectRejected(result, 'SPL-3')` asserts `!result.ok` and that some rea
 - [ ] REP-9 `activity` grows by exactly one entry per command (`generated`, `recalculated` with `changes`, `sent`). Earlier entries are unchanged.
 - [ ] REP-10 the class has no `delete`/`remove` member (`@ts-expect-error report.delete`).
 - [ ] STM-3 `markSent` records the current revision. Accepts a collaborator who dropped to $0 on the current revision (clears their STM-2 flag). Rejects a collaborator never listed on any revision, and a repeat at the same revision. After recalculate it moves 1 → 2 and never back.
-- [ ] REP-11 `recalculate` with splits/parties producing identical lines is rejected, and the report is unchanged (no new revision, no activity entry). A change to a single line is accepted.
+- [ ] REP-11 `recalculate` with splits/parties producing identical lines is rejected, and the report is unchanged (no new revision, no activity entry). A change to a single line is accepted. A name- or email-only change is accepted and creates a new revision with the updated `PartySnapshot`.
 - [ ] `dueFor` returns 0 for an absent party. `everListed` is true if the party is on any revision.
 
 ### PaymentLedger
@@ -679,7 +679,8 @@ Suggested order: (1) `shared` + Split/Collaborator with tests → (2) allocate +
 1. **No partial payments.** `markPaid` (full balance) is the only way to record a payment. There is no `recordPayment`. A "partially paid" state can still arise after a Recalculate raises the due.
 2. **PAY-5:** a collaborator present on *any* revision can be paid, settled or reversed.
 3. **Drafts live on screen only.** `Split.validateDraft` serves the UI. Drafts are never persisted.
-4. **Recalculate must change at least one line** (REP-11). Otherwise it is rejected and no revision is created.
+4. **Recalculate must change something** (REP-11): amounts or a party's name/email. Otherwise it is rejected and no revision is created.
+8. **Rounding** (REP-5): collaborators round down; the owner absorbs the remainder and is never negative.
 5. **One channel per account** (ACC-1). No unlink/switch for now.
 6. **`markSent`** accepts anyone ever listed on the report (fixes the STM-2/STM-3 deadlock for collaborators dropped to $0).
 7. **Target platform:** a new Next.js + TypeScript + Jest app. The domain is ported there; `concept-b-grid` remains the UI reference.
