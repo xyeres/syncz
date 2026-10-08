@@ -173,7 +173,8 @@ function cyclomaticComplexity(body: ts.Node): number {
     }
     ts.forEachChild(node, visit);
   };
-  ts.forEachChild(body, visit);
+  // Visit the body node itself so an expression-bodied arrow (e.g. `() => a ? b : c`) counts its own branch.
+  visit(body);
   return comp;
 }
 
@@ -392,7 +393,7 @@ function printTable(reports: FunctionReport[], threshold: number): void {
     ),
   );
   for (const r of reports) {
-    const flag = r.crap >= threshold ? " [RISK]" : "";
+    const flag = r.crap > threshold ? " [RISK]" : "";
     log(
       fmtRow(
         [
@@ -451,7 +452,7 @@ function main(): void {
 
   printTable(limited, args.threshold);
 
-  const risky = allReports.filter((r) => r.crap >= args.threshold);
+  const risky = allReports.filter((r) => r.crap > args.threshold);
   log("");
   log(
     `Analyzed ${allReports.length} functions across ${files.length} files. ${risky.length} above CRAP threshold of ${args.threshold}.`,
