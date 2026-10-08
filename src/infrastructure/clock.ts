@@ -25,3 +25,17 @@ export function fixedClock(at: IsoDateTime = SEED_NOW): FixedClock {
     },
   }
 }
+
+export type SwitchableClock = Clock & { use(next: Clock): void }
+
+/** Delegates to another clock that can be swapped, e.g. seed on a fixed clock, then run on real time. */
+export function switchableClock(initial: Clock): SwitchableClock {
+  let current = initial
+  return {
+    now: () => current.now(),
+    today: () => current.today(),
+    use(next) {
+      current = next
+    },
+  }
+}

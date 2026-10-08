@@ -3,12 +3,17 @@
  * and the documented demo states appear through the queries.
  */
 import { createInMemoryApp, type InMemoryApp } from '../index'
+import { fixedClock } from '../clock'
+import type { IsoDateTime } from '../../domain/shared/numbers'
 import type { CollaboratorListItem, ReportViewModel } from '../../application/queries'
 import { OWNER_ID } from '../../domain/shared/ids'
 
+/** Stands in for the system clock after seeding: the day after the seed's "today". */
+const RUNTIME_NOW = '2026-10-08T12:00:00.000Z' as IsoDateTime
+
 let app: InMemoryApp
 beforeAll(async () => {
-  app = await createInMemoryApp()
+  app = await createInMemoryApp({ runtimeClock: fixedClock(RUNTIME_NOW) })
 })
 
 const view = async (period: string): Promise<ReportViewModel> => {
@@ -140,5 +145,12 @@ describe('seed replay', () => {
     expect(result.ok).toBe(false)
     const messages = result.ok ? [] : (await app.queries.presentReasons(result.reasons)).map((r) => r.message)
     expect(messages).toContain('Give Leo Park at least 0.10% or remove them')
+  })
+
+  it('after seeding, the app runs on the runtime clock: a new action is stamped later than the seed', async () => {
+    const seedTimes = (await view('2026-08')).activity.map((r) => r.at)
+    const september = await app.useCases.generateReport({ period: '2026-09' })
+    expect(september.ok && september.value.activity[0]?.at).toBe(RUNTIME_NOW)
+    for (const at of seedTimes) expect(at < RUNTIME_NOW).toBe(true)
   })
 })
