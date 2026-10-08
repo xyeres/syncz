@@ -1,3 +1,5 @@
+import type { PartyId } from './ids'
+
 export type InvariantCode =
   | 'ACC-1' | 'ACC-2'
   | 'SPL-1' | 'SPL-2' | 'SPL-3' | 'SPL-4' | 'SPL-5' | 'SPL-6' | 'SPL-7' | 'SPL-8' | 'SPL-9' | 'SPL-10' | 'SPL-11'
@@ -10,7 +12,10 @@ export type ReasonCode = InvariantCode | 'NOT_FOUND' | 'INVALID_INPUT'
 
 export interface Reason {
   readonly code: ReasonCode
+  /** Names parties by id; the application layer substitutes display names (§0 Reason messages). */
   readonly message: string
+  /** The party this reason is about, when there is one. Absent (no key) otherwise. */
+  readonly partyId?: PartyId
 }
 
 export type Result<T> =
@@ -19,9 +24,13 @@ export type Result<T> =
 
 export const ok = <T>(value: T): Result<T> => ({ ok: true, value })
 
-export const fail = (code: ReasonCode, message: string): Result<never> => ({
+/** A reason, with a `partyId` key only when a party is given. */
+const reasonOf = (code: ReasonCode, message: string, partyId?: PartyId): Reason =>
+  partyId === undefined ? { code, message } : { code, message, partyId }
+
+export const fail = (code: ReasonCode, message: string, partyId?: PartyId): Result<never> => ({
   ok: false,
-  reasons: [{ code, message }],
+  reasons: [reasonOf(code, message, partyId)],
 })
 
 export const failAll = (reasons: readonly Reason[]): Result<never> => ({ ok: false, reasons })
@@ -34,8 +43,8 @@ export const collect = (...checks: readonly Result<unknown>[]): readonly Reason[
 export const OK: Result<void> = ok(undefined)
 
 /** A single-rule check: fails with `code`/`message` when `failed` is true, otherwise OK. */
-export const failIf = (failed: boolean, code: ReasonCode, message: string): Result<void> =>
-  failed ? fail(code, message) : OK
+export const failIf = (failed: boolean, code: ReasonCode, message: string, partyId?: PartyId): Result<void> =>
+  failed ? fail(code, message, partyId) : OK
 
 /** The values of the successful results, in order. */
 export const valuesOf = <T>(results: readonly Result<T>[]): T[] =>

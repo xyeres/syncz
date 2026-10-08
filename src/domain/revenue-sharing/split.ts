@@ -37,23 +37,23 @@ const checkOwner = (shares: readonly ShareInput[]): Result<void> =>
     'The split must include you exactly once',
   )
 
-/** SPL-5: each collaborator at most once (a duplicated owner is SPL-4's concern). */
-const checkDuplicates = (shares: readonly ShareInput[]): Result<void> => {
-  const collaboratorIds = shares.map((s) => s.partyId).filter((id) => !isOwner(id))
-  return failIf(
-    new Set(collaboratorIds).size !== collaboratorIds.length,
-    'SPL-5',
-    'Each collaborator can appear only once',
-  )
+/** Collaborator ids that appear more than once, each listed once, in order of first repeat. */
+const duplicatedCollaborators = (shares: readonly ShareInput[]): PartyId[] => {
+  const ids = shares.map((s) => s.partyId).filter((id) => !isOwner(id))
+  return [...new Set(ids.filter((id, i) => ids.indexOf(id) !== i))]
 }
+
+/** SPL-5: each collaborator at most once (a duplicated owner is SPL-4's concern). One failure per duplicate. */
+const checkDuplicates = (shares: readonly ShareInput[]): Result<void>[] =>
+  duplicatedCollaborators(shares).map((id) => fail('SPL-5', `${id} can appear only once in a split`, id))
 
 /** SPL-4: the owner may hold 0%, but a non-zero owner share follows the minimum. */
 const checkOwnerMinimum = (share: Share): Result<void> =>
-  failIf(share.bps > 0 && share.bps < MIN_SHARE, 'SPL-4', 'Your share must be 0% or at least 0.10%')
+  failIf(share.bps > 0 && share.bps < MIN_SHARE, 'SPL-4', 'Your share must be 0% or at least 0.10%', share.partyId)
 
 /** SPL-3: every collaborator share is at least MIN_SHARE. */
 const checkCollaboratorMinimum = (share: Share): Result<void> =>
-  failIf(share.bps < MIN_SHARE, 'SPL-3', `Give ${share.partyId} at least 0.10% or remove them`)
+  failIf(share.bps < MIN_SHARE, 'SPL-3', `Give ${share.partyId} at least 0.10% or remove them`, share.partyId)
 
 const checkMinimum = (share: Share): Result<void> =>
   isOwner(share.partyId) ? checkOwnerMinimum(share) : checkCollaboratorMinimum(share)
@@ -81,7 +81,7 @@ function validate(fields: SplitFields): Result<ValidFields> {
     checkName(fields.name),
     checkVideos(fields.videoIds),
     checkOwner(fields.shares),
-    checkDuplicates(fields.shares),
+    ...checkDuplicates(fields.shares),
     ...shareChecks,
     checkTotal(fields.shares),
   )

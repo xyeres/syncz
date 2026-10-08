@@ -31,11 +31,12 @@ const checkVideoOnChannel = (videoId: VideoId, channelVideoIds: ReadonlySet<Vide
 function checkPartyReference(partyId: PartyId, collaborators: readonly Collaborator[]): Result<void> {
   if (isOwner(partyId)) return OK
   const collaborator = collaborators.find((c) => c.id === partyId)
-  if (!collaborator) return fail('SPL-8', `Collaborator ${partyId} does not exist`)
+  if (!collaborator) return fail('SPL-8', `Collaborator ${partyId} does not exist`, partyId)
   return failIf(
     collaborator.isDeleted(),
     'SPL-8',
-    `${collaborator.name} has been deleted; remove them from this split`,
+    `${partyId} has been deleted; remove them from this split`,
+    partyId,
   )
 }
 
