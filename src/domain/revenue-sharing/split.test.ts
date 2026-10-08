@@ -271,4 +271,49 @@ describe('Split', () => {
       expect(Object.isFrozen(aSplit())).toBe(true)
     })
   })
+
+  describe('Reason.partyId', () => {
+    const reasonsFor = (result: ReturnType<typeof Split.create>, code: string) =>
+      result.ok ? [] : result.reasons.filter((r) => r.code === code)
+
+    it('SPL-3 a collaborator below 0.10% is named by partyId', () => {
+      const result = Split.create(aSplitInput({ shares: [share(OWNER_ID, 9991), share(ALEX, 9)] }))
+      expect(reasonsFor(result, 'SPL-3').map((r) => r.partyId)).toEqual([ALEX])
+    })
+
+    it('SPL-3 only the offending collaborator is named', () => {
+      const result = Split.create(
+        aSplitInput({ shares: [share(OWNER_ID, 6995), share(ALEX, 3000), share(SAM, 5)] }),
+      )
+      expect(reasonsFor(result, 'SPL-3').map((r) => r.partyId)).toEqual([SAM])
+    })
+
+    it.each([1, 5, 9])('SPL-4 an owner at %p bps (0.01–0.09%%) is named by partyId OWNER_ID', (ownerBps) => {
+      const result = Split.create(aSplitInput({ shares: [share(OWNER_ID, ownerBps), share(ALEX, 10000 - ownerBps)] }))
+      expect(reasonsFor(result, 'SPL-4').map((r) => r.partyId)).toEqual([OWNER_ID])
+    })
+
+    it('SPL-5 a duplicate collaborator is named by partyId', () => {
+      const result = Split.create(
+        aSplitInput({ shares: [share(OWNER_ID, 4000), share(ALEX, 3000), share(ALEX, 3000)] }),
+      )
+      const reasons = reasonsFor(result, 'SPL-5')
+      expect(reasons.length).toBeGreaterThan(0)
+      for (const r of reasons) expect(r.partyId).toBe(ALEX)
+    })
+
+    it('SPL-3 validateDraft carries the same partyId', () => {
+      const reasons = Split.validateDraft(aSplitInput({ shares: [share(OWNER_ID, 9991), share(ALEX, 9)] }))
+      expect(reasons.find((r) => r.code === 'SPL-3')?.partyId).toBe(ALEX)
+    })
+
+    it('SPL-1 / SPL-6 reasons not about a party have no partyId key', () => {
+      const result = Split.create(
+        aSplitInput({ name: ' ', videoIds: [], shares: [share(OWNER_ID, 5000), share(ALEX, 3000)] }),
+      )
+      const unaffected = [...reasonsFor(result, 'SPL-1'), ...reasonsFor(result, 'SPL-6')]
+      expect(unaffected).toHaveLength(3)
+      for (const r of unaffected) expect('partyId' in r).toBe(false)
+    })
+  })
 })

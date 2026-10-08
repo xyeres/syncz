@@ -171,4 +171,43 @@ describe('sharing policies', () => {
       expect(typeof compileOnly).toBe('function')
     })
   })
+
+  describe('Reason.partyId', () => {
+    const channelVideoIds = new Set([V1, V2, V3])
+
+    it('SPL-8 an unknown collaborator is named by partyId', () => {
+      const split = aSplit({ shares: [share(OWNER_ID, 5000), share(ALEX, 2500), share(SAM, 2500)] })
+      const reasons = expectRejected(checkSplitReferences(split, { channelVideoIds, collaborators: [alex()] }), 'SPL-8')
+      expect(reasons.map((r) => r.partyId)).toEqual([SAM])
+    })
+
+    it('SPL-8 a soft-deleted collaborator is named by partyId', () => {
+      const split = aSplit({ shares: [share(OWNER_ID, 5000), share(JO, 5000)] })
+      const reasons = expectRejected(
+        checkSplitReferences(split, { channelVideoIds, collaborators: [alex(), deletedJo()] }),
+        'SPL-8',
+      )
+      expect(reasons.map((r) => r.partyId)).toEqual([JO])
+    })
+
+    it('SPL-8 a foreign-video reason has no partyId key', () => {
+      const split = aSplit({ videoIds: [V1, videoId('v-foreign')] })
+      const reasons = expectRejected(checkSplitReferences(split, { channelVideoIds, collaborators: [alex()] }), 'SPL-8')
+      expect(reasons).toHaveLength(1)
+      expect('partyId' in (reasons[0] ?? {})).toBe(false)
+    })
+
+    it('SPL-8 mixed: only the collaborator reason carries partyId', () => {
+      const split = aSplit({ videoIds: [videoId('v-foreign')], shares: [share(OWNER_ID, 5000), share(JO, 5000)] })
+      const reasons = expectRejected(checkSplitReferences(split, { channelVideoIds, collaborators: [deletedJo()] }), 'SPL-8')
+      expect(reasons.map((r) => ('partyId' in r ? r.partyId : null)).sort()).toEqual([JO, null].sort())
+    })
+
+    it('SPL-7 a video-clash reason has no partyId key', () => {
+      const split = aSplit({ id: splitId('split-new'), videoIds: [V1, V2] })
+      const other = aSplit({ id: splitId('split-other'), name: 'Podcast clips', videoIds: [V2, V3] })
+      const reasons = expectRejected(checkVideoExclusivity(split, [other]), 'SPL-7')
+      for (const r of reasons) expect('partyId' in r).toBe(false)
+    })
+  })
 })
