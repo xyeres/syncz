@@ -172,7 +172,7 @@ export class MonthlyReport {
   /** STM-3: records the current revision as sent to a collaborator listed on any revision. */
   markSent(collaboratorId: CollaboratorId, meta: Meta): Result<MonthlyReport> {
     const revision = this.currentRevision().number
-    const name = this.latestNameOf(collaboratorId)
+    const name = this.latestPartySnapshot(collaboratorId)?.name
     if (name === undefined) return fail('STM-3', `${collaboratorId} is not on any revision of this report`)
     if ((this.sent[collaboratorId] ?? 0) >= revision) {
       return fail('STM-3', `Revision ${revision} has already been sent to ${name}`)
@@ -187,8 +187,7 @@ export class MonthlyReport {
 
   /** The party's due in the given revision (default: current); 0 when the party has no line. */
   dueFor(partyId: PartyId, revisionNo?: number): Cents {
-    const revision =
-      revisionNo === undefined ? this.currentRevision() : this.revisions.find((r) => r.number === revisionNo)
+    const revision = revisionNo === undefined ? this.currentRevision() : this.revision(revisionNo)
     return dueIn(revision?.lines ?? [], partyId)
   }
 
@@ -202,9 +201,14 @@ export class MonthlyReport {
     return { id, channelId, period, frozenRevenue, revisions, sent, activity }
   }
 
-  /** The party's name on the latest revision that lists them. */
-  private latestNameOf(partyId: PartyId): string | undefined {
-    return [...this.revisions].reverse().map((r) => lineFor(r.lines, partyId)).find((l) => l !== undefined)?.party.name
+  /** The party's details on the latest revision that lists them; undefined if never listed. */
+  latestPartySnapshot(partyId: PartyId): PartySnapshot | undefined {
+    return [...this.revisions].reverse().map((r) => lineFor(r.lines, partyId)).find((l) => l !== undefined)?.party
+  }
+
+  /** Revision `number`, or undefined when there is no such revision. */
+  revision(number: number): Revision | undefined {
+    return this.revisions.find((r) => r.number === number)
   }
 
   private with(changes: Partial<Pick<MonthlyReportSnapshot, 'revisions' | 'sent' | 'activity'>>): MonthlyReport {
