@@ -14,13 +14,9 @@ type Payable = Readonly<{ report: MonthlyReport; collaboratorId: CollaboratorId;
 /** PAY-5 + COL-7 via checkPayable, then the collaborator's ledger for the report (opened on first use). */
 async function payable({ repos }: Ports, { reportId, partyId }: PaymentTarget): Promise<Result<Payable>> {
   const report = await repos.reports.findById(reportId)
-  return andThen(checkPayable(report, partyId), async (collaboratorId) => {
-    const ledger = await repos.ledgers.findById(ledgerIdOf(reportId, collaboratorId))
-    return ok({
-      report: report as MonthlyReport, // checkPayable rejected a null report
-      collaboratorId,
-      ledger: ledger ?? PaymentLedger.open(reportId, collaboratorId),
-    })
+  return andThen(checkPayable(report, partyId), async (checked) => {
+    const ledger = await repos.ledgers.findById(ledgerIdOf(reportId, checked.collaboratorId))
+    return ok({ ...checked, ledger: ledger ?? PaymentLedger.open(reportId, checked.collaboratorId) })
   })
 }
 
