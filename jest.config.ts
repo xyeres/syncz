@@ -6,13 +6,34 @@ const createJestConfig = nextJest({
   dir: "./",
 });
 
-// Add any custom config to be passed to Jest
-const config: Config = {
-  coverageProvider: "v8",
-  testEnvironment: "jsdom",
+// Per-project options shared by every project (next/jest adds the SWC transform,
+// module name mappers and ignore patterns on top of these).
+const projectConfig: Config = {
   // Add more setup options before each test is run
   // setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
 };
 
-// createJestConfig is exported this way to ensure that next/jest can load the Next.js config which is async
-export default createJestConfig(config);
+// Two projects so the domain never sees DOM globals:
+//  - "domain": src/domain/** runs in the plain `node` environment (no window/document).
+//  - "ui":     everything else keeps the jsdom environment for future UI tests.
+// createJestConfig is async (it loads next.config), so the projects are built from its result.
+export default async function jestConfig(): Promise<Config> {
+  const base = await createJestConfig(projectConfig)();
+  return {
+    coverageProvider: "v8",
+    projects: [
+      {
+        ...base,
+        displayName: "domain",
+        testEnvironment: "node",
+        testMatch: ["<rootDir>/src/domain/**/*.test.ts"],
+      },
+      {
+        ...base,
+        displayName: "ui",
+        testEnvironment: "jsdom",
+        testPathIgnorePatterns: [...(base.testPathIgnorePatterns ?? []), "<rootDir>/src/domain/"],
+      },
+    ],
+  };
+}
