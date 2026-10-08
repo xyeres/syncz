@@ -201,9 +201,16 @@ export class MonthlyReport {
     return { id, channelId, period, frozenRevenue, revisions, sent, activity }
   }
 
-  /** The party's details on the latest revision that lists them; undefined if never listed. */
-  latestPartySnapshot(partyId: PartyId): PartySnapshot | undefined {
-    return [...this.revisions].reverse().map((r) => lineFor(r.lines, partyId)).find((l) => l !== undefined)?.party
+  /**
+   * The party's details on the latest revision that lists them, considering only revisions up to
+   * `upToRevision` (default: all). Undefined if no such revision lists them.
+   */
+  latestPartySnapshot(partyId: PartyId, upToRevision = Infinity): PartySnapshot | undefined {
+    return this.revisions
+      .filter((r) => r.number <= upToRevision)
+      .reverse()
+      .map((r) => lineFor(r.lines, partyId))
+      .find((l) => l !== undefined)?.party
   }
 
   /** Revision `number`, or undefined when there is no such revision. */

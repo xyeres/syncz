@@ -20,17 +20,17 @@ export type Statement = Readonly<{
 
 type StatementBody = Pick<Statement, 'party' | 'videos' | 'totalCents'>
 
-/** The collaborator's line in the revision, or a $0 body with their last known details. */
+/** The collaborator's line in the revision, or a $0 body with their details as of that revision (REP-8). */
 function statementBody(revision: Revision, collaboratorId: CollaboratorId, lastKnown: PartySnapshot): StatementBody {
   const line = revision.lines.find((l) => l.party.partyId === collaboratorId)
   if (!line) return { party: lastKnown, videos: [], totalCents: 0 as Cents }
   return { party: line.party, videos: line.videos, totalCents: line.dueCents }
 }
 
-/** STM-1: null for a collaborator never on the report or an unknown revision. */
+/** STM-1: null for an unknown revision, or a collaborator not listed on any revision up to it. */
 export function buildStatement(report: MonthlyReport, collaboratorId: CollaboratorId, revisionNo: number): Statement | null {
   const revision = report.revision(revisionNo)
-  const lastKnown = report.latestPartySnapshot(collaboratorId)
+  const lastKnown = report.latestPartySnapshot(collaboratorId, revisionNo)
   if (!revision || !lastKnown) return null
   return {
     reportId: report.id,
