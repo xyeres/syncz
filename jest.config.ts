@@ -15,6 +15,7 @@ const projectConfig: Config = {
 
 // Two projects so the domain never sees DOM globals:
 //  - "domain": src/domain/** runs in the plain `node` environment (no window/document).
+//  - "core":   src/application/** and src/infrastructure/** (node), use cases on in-memory ports.
 //  - "ui":     everything else keeps the jsdom environment for future UI tests.
 // createJestConfig is async (it loads next.config), so the projects are built from its result.
 export default async function jestConfig(): Promise<Config> {
@@ -30,9 +31,20 @@ export default async function jestConfig(): Promise<Config> {
       },
       {
         ...base,
+        displayName: "core",
+        testEnvironment: "node",
+        testMatch: ["<rootDir>/src/application/**/*.test.ts", "<rootDir>/src/infrastructure/**/*.test.ts"],
+      },
+      {
+        ...base,
         displayName: "ui",
         testEnvironment: "jsdom",
-        testPathIgnorePatterns: [...(base.testPathIgnorePatterns ?? []), "<rootDir>/src/domain/"],
+        testPathIgnorePatterns: [
+          ...(base.testPathIgnorePatterns ?? []),
+          "<rootDir>/src/domain/",
+          "<rootDir>/src/application/",
+          "<rootDir>/src/infrastructure/",
+        ],
       },
     ],
   };

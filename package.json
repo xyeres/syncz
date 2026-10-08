@@ -11,7 +11,10 @@
     "typecheck:domain": "tsc --noEmit -p src/domain/tsconfig.json",
     "check:deps": "node scripts/check-domain-imports.mjs",
     "test:coverage:domain": "jest --selectProjects domain --coverage --coverageReporters=json",
-    "crap:domain": "pnpm test:coverage:domain && tsx scripts/crap-detector.ts --path 'src/domain/**/*.ts' --threshold 5"
+    "crap:domain": "pnpm test:coverage:domain && tsx scripts/crap-detector.ts --path 'src/domain/**/*.ts' --threshold 5",
+    "typecheck:core": "tsc --noEmit -p tsconfig.core.json",
+    "test:coverage:core": "jest --selectProjects domain core --coverage --coverageReporters=json",
+    "crap:core": "pnpm test:coverage:core && tsx scripts/crap-detector.ts --path 'src/application/**/*.ts' --path 'src/infrastructure/**/*.ts' --threshold 5"
   },
   "dependencies": {
     "next": "16.4.0",

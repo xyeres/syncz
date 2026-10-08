@@ -114,7 +114,7 @@ const ledgerFor = (ledgers: readonly PaymentLedger[], collaboratorId: Collaborat
   ledgers.find((l) => l.collaboratorId === collaboratorId) ?? null
 
 /** Non-owners listed on any revision, plus anyone with a ledger for this report. */
-function payeesOf(report: MonthlyReport, ledgers: readonly PaymentLedger[]): CollaboratorId[] {
+export function payeesOf(report: MonthlyReport, ledgers: readonly PaymentLedger[]): CollaboratorId[] {
   const listed = report.revisions.flatMap((r) => r.lines.map((l) => l.party.partyId))
   const ids = new Set<PartyId>([...listed, ...ledgers.map((l) => l.collaboratorId)])
   return [...ids].filter((id): id is CollaboratorId => !isOwner(id))
