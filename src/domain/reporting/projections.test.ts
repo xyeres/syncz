@@ -74,7 +74,7 @@ describe('reporting projections', () => {
       expect(buildStatement(r2, ALEX, 2)?.party.name).toBe('Alexandra Rivera')
     })
 
-    it('STM-1 a collaborator dropped from revision n gets a $0 statement with their last known details', () => {
+    it('STM-1 a collaborator dropped from revision n gets a $0 statement with their details as of revision n', () => {
       const r2 = recalc(aReport(), alexDropped(), 2)
       expect(buildStatement(r2, ALEX, 2)).toEqual({
         reportId: r2.id,
@@ -85,6 +85,33 @@ describe('reporting projections', () => {
         videos: [],
         totalCents: 0,
       })
+    })
+
+    it('STM-1 / REP-8 a dropped collaborator’s $0 statement uses their details as of revision n, not a later revision’s', () => {
+      const partiesWith = (name: string, email: string) =>
+        defaultParties().map((p) => (p.partyId === ALEX ? { ...p, name, email } : p))
+      const r1 = aReport({ parties: partiesWith('Alex Old', 'old@x.com') })
+      const r2 = recalc(r1, alexDropped(), 2, partiesWith('Alex Old', 'old@x.com'))
+      const r3 = recalc(r2, [aSplitSnapshot()], 3, partiesWith('Alex New', 'new@x.com'))
+
+      expect(buildStatement(r3, ALEX, 2)).toEqual({
+        reportId: r3.id,
+        period: r3.period,
+        revision: 2,
+        issuedAt: meta(2).at,
+        party: { ...aPartySnapshot(ALEX), name: 'Alex Old', email: 'old@x.com' },
+        videos: [],
+        totalCents: 0,
+      })
+      const atR3 = buildStatement(r3, ALEX, 3)
+      expect(atR3?.party).toEqual({ ...aPartySnapshot(ALEX), name: 'Alex New', email: 'new@x.com' })
+      expect(atR3?.totalCents).toBe(ALEX_DUE_R1)
+    })
+
+    it('STM-1 / REP-8 returns null for a revision before the collaborator first appears', () => {
+      const r2 = recalc(aReport(), withSam(), 2)
+      expect(buildStatement(r2, SAM, 1)).toBeNull()
+      expect(buildStatement(r2, SAM, 2)?.party).toEqual(aPartySnapshot(SAM))
     })
 
     it('STM-1 returns null for a collaborator never on the report, or an unknown revision', () => {
