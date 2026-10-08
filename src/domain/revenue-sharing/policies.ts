@@ -1,10 +1,9 @@
-import { isOwner, type CollaboratorId, type VideoId } from '../shared/ids'
-import { fail, failAll, ok, type Reason, type Result } from '../shared/result'
+import { isOwner, type CollaboratorId, type PartyId, type VideoId } from '../shared/ids'
+import { OK, collect, fail, failAll, failIf, type Reason, type Result } from '../shared/result'
 import type { Collaborator } from './collaborator'
 import type { Email } from '../shared/email'
 import type { Split } from './split'
 
-const OK: Result<void> = ok(undefined)
 const done = (reasons: readonly Reason[]): Result<void> => (reasons.length > 0 ? failAll(reasons) : OK)
 const quoted = (names: readonly string[]) => names.map((n) => `“${n}”`).join(', ')
 
@@ -24,27 +23,33 @@ export function checkVideoExclusivity(split: Split, others: readonly Split[]): R
   return done(reasons)
 }
 
+/** SPL-8 for one video: it must be on the linked channel. */
+const checkVideoOnChannel = (videoId: VideoId, channelVideoIds: ReadonlySet<VideoId>): Result<void> =>
+  failIf(!channelVideoIds.has(videoId), 'SPL-8', `Video ${videoId} is not on your channel`)
+
+/** SPL-8 for one party: the owner always qualifies; a collaborator must exist and not be deleted. */
+function checkPartyReference(partyId: PartyId, collaborators: readonly Collaborator[]): Result<void> {
+  if (isOwner(partyId)) return OK
+  const collaborator = collaborators.find((c) => c.id === partyId)
+  if (!collaborator) return fail('SPL-8', `Collaborator ${partyId} does not exist`)
+  return failIf(
+    collaborator.isDeleted(),
+    'SPL-8',
+    `${collaborator.name} has been deleted; remove them from this split`,
+  )
+}
+
 /** SPL-8: only videos from the linked channel and collaborators that exist and are not deleted. */
 export function checkSplitReferences(
   split: Split,
   ctx: Readonly<{ channelVideoIds: ReadonlySet<VideoId>; collaborators: readonly Collaborator[] }>,
 ): Result<void> {
-  const reasons: Reason[] = []
-  for (const videoId of split.videoIds) {
-    if (!ctx.channelVideoIds.has(videoId)) {
-      reasons.push({ code: 'SPL-8', message: `Video ${videoId} is not on your channel` })
-    }
-  }
-  for (const { partyId } of split.shares) {
-    if (isOwner(partyId)) continue
-    const collaborator = ctx.collaborators.find((c) => c.id === partyId)
-    if (!collaborator) {
-      reasons.push({ code: 'SPL-8', message: `Collaborator ${partyId} does not exist` })
-    } else if (collaborator.isDeleted()) {
-      reasons.push({ code: 'SPL-8', message: `${collaborator.name} has been deleted; remove them from this split` })
-    }
-  }
-  return done(reasons)
+  return done(
+    collect(
+      ...split.videoIds.map((videoId) => checkVideoOnChannel(videoId, ctx.channelVideoIds)),
+      ...split.shares.map((share) => checkPartyReference(share.partyId, ctx.collaborators)),
+    ),
+  )
 }
 
 /**

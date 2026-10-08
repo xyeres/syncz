@@ -29,3 +29,14 @@ export const failAll = (reasons: readonly Reason[]): Result<never> => ({ ok: fal
 /** Gathers every reason from the given checks, in order. Empty when all are ok. */
 export const collect = (...checks: readonly Result<unknown>[]): readonly Reason[] =>
   checks.flatMap((c) => (c.ok ? [] : c.reasons))
+
+/** Success with no value: what policies and single-rule checks return when they pass. */
+export const OK: Result<void> = ok(undefined)
+
+/** A single-rule check: fails with `code`/`message` when `failed` is true, otherwise OK. */
+export const failIf = (failed: boolean, code: ReasonCode, message: string): Result<void> =>
+  failed ? fail(code, message) : OK
+
+/** The values of the successful results, in order. */
+export const valuesOf = <T>(results: readonly Result<T>[]): T[] =>
+  results.flatMap((r) => (r.ok ? [r.value] : []))

@@ -64,11 +64,7 @@ export class Collaborator {
   /** Applies the given fields over the current ones and re-validates the result. */
   edit(fields: Partial<CollaboratorFields>): Result<Collaborator> {
     if (this.isDeleted()) return this.deletedReason()
-    const valid = validate({
-      name: fields.name ?? this.name,
-      email: fields.email ?? this.email.value,
-      role: fields.role ?? this.role,
-    })
+    const valid = validate(this.mergedWith(fields))
     if (!valid.ok) return valid
     const { name, email, role } = valid.value
     return ok(new Collaborator(this.id, this.channelId, name, email, role, null))
@@ -88,6 +84,15 @@ export class Collaborator {
       email: { ...this.email },
       role: { ...this.role },
       deletedAt: this.deletedAt,
+    }
+  }
+
+  /** The given fields over the current ones, as raw input for re-validation. */
+  private mergedWith(fields: Partial<CollaboratorFields>): CollaboratorFields {
+    return {
+      name: fields.name ?? this.name,
+      email: fields.email ?? this.email.value,
+      role: fields.role ?? this.role,
     }
   }
 
