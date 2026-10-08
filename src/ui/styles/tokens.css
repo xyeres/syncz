@@ -1,0 +1,50 @@
+/* ───────────── Syncz · Concept B "GRID" — design tokens ───────────── */
+:root {
+  /* paper + ink */
+  --paper: #fafaf7;
+  --paper-2: #f1f0e9;
+  --white: #ffffff;
+  --ink: #0e0e0e;
+  --muted: #6b6a64;
+  --soft: #d9d8cf;
+  --danger: #b3261e;
+  --ok: #0b6b3a;
+
+  /* postmodern pastel blocks */
+  --lilac: #c9b8ff;
+  --mint: #a8e6cf;
+  --butter: #ffe58a;
+  --coral: #ff9b85;
+  --sky: #9fd3ff;
+  --peach: #ffc8a2;
+  --stone: #e6e3d8;
+
+  /* structure */
+  --rule-w: 1.5px;
+  --rule: var(--rule-w) solid var(--ink);
+  --rule-soft: 1px solid var(--soft);
+  --radius: 6px;
+  --radius-lg: 8px;
+  --hard: 4px 4px 0 0 var(--ink);
+  --hatch: repeating-linear-gradient(135deg, transparent 0 6px, rgb(14 14 14 / 0.38) 6px 7.5px);
+
+  /* type */
+  --font-display: var(--font-space-grotesk, 'Space Grotesk'), 'Inter Tight', system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono, 'JetBrains Mono'), 'IBM Plex Mono', ui-monospace, monospace;
+
+  /* controls */
+  --ctl: 48px;
+  --ctl-lg: 56px;
+  --ctl-xl: 64px;
+
+  /* layout */
+  --sidebar-w: 272px;
+  --topbar-h: 72px;
+  --gutter: 40px;
+}
+
+@media (max-width: 900px) {
+  :root {
+    --gutter: 20px;
+  }
+}

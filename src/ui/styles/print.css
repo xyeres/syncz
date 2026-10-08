@@ -1,0 +1,351 @@
+/* ───────────── Print: a clean black-and-white statement ───────────── */
+@media print {
+  @page {
+    size: A4;
+    margin: 16mm 14mm;
+  }
+
+  :root {
+    --hatch: none;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+    color: #000 !important;
+    font-size: 11pt;
+  }
+
+  .no-print,
+  .sidebar,
+  .topbar,
+  .skip-link,
+  [popover] {
+    display: none !important;
+  }
+
+  .print-only {
+    display: revert !important;
+  }
+
+  .shell {
+    display: block;
+  }
+
+  .content {
+    padding: 0;
+    max-width: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    box-shadow: none !important;
+    text-shadow: none !important;
+    transition: none !important;
+  }
+
+  .print-mast {
+    display: flex !important;
+    justify-content: space-between;
+    gap: 24px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #000;
+    font-family: var(--font-mono);
+    font-size: 9pt;
+    line-height: 1.5;
+  }
+
+  .print-mast strong {
+    font-family: var(--font-display);
+    font-size: 13pt;
+    letter-spacing: 0.02em;
+  }
+
+  .print-mast__right {
+    text-align: right;
+  }
+
+  .print-title {
+    font-size: 30pt;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1;
+  }
+
+  .report-head {
+    padding: 18px 0 12px;
+    border-bottom: 1px solid #000;
+  }
+
+  .gross {
+    padding: 14px 0;
+    border-bottom: 1px solid #000;
+  }
+
+  .gross__num {
+    font-size: 36pt;
+    margin: 6px 0 8px;
+  }
+
+  .gross__meta {
+    color: #000;
+    font-size: 8pt;
+  }
+
+  .paysum {
+    border-bottom: 1px solid #000;
+  }
+
+  .paysum__cell {
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+
+  .paysum__cell + .paysum__cell {
+    border-left: 1px solid #000;
+  }
+
+  .paysum__num {
+    font-size: 15pt;
+  }
+
+  .label,
+  .muted {
+    color: #000 !important;
+  }
+
+  .ledger__row {
+    grid-template-columns: 2fr 2.2fr 1.1fr 1fr;
+    min-height: 0;
+    padding: 10px 0;
+    gap: 14px;
+    border-bottom: 1px solid #000;
+    break-inside: avoid;
+  }
+
+  .ledger__row--head {
+    display: grid !important;
+    font-size: 7.5pt;
+    border-bottom: 2px solid #000;
+  }
+
+  .ledger__row--total {
+    border-top: 2px solid #000;
+    border-bottom: 3px double #000;
+  }
+
+  .ledger__row--total .num {
+    font-size: 13pt;
+  }
+
+  .ledger__row.is-paid .ledger__who,
+  .ledger__row.is-paid .ledger__split,
+  .ledger__row.is-paid .ledger__amt {
+    opacity: 1;
+  }
+
+  .ledger__row.is-paid .ledger__amt,
+  .ledger__row.is-paid .ledger__who strong {
+    text-decoration: none;
+  }
+
+  .swatch {
+    width: 26px !important;
+    height: 26px !important;
+    font-size: 8pt !important;
+    background: #fff !important;
+    border: 1px solid #000;
+  }
+
+  .ledger__who strong {
+    font-size: 11pt;
+  }
+
+  .ledger__pct {
+    font-size: 12pt;
+    min-width: 48px;
+  }
+
+  .ledger__parts,
+  .ledger__parts .small {
+    font-size: 7.5pt;
+    color: #000;
+  }
+
+  .ledger__amt {
+    font-size: 12pt;
+  }
+
+  .is-owed {
+    box-shadow: none !important;
+  }
+
+  .report__fine {
+    margin-top: 16px;
+    font-size: 7.5pt;
+  }
+
+  /* undo narrow-viewport layouts (print width triggers them) */
+  .paysum {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .paysum__cell + .paysum__cell {
+    padding-left: 16px;
+    border-top: 0;
+  }
+
+  .ledger__split,
+  .ledger__amt,
+  .ledger__status {
+    grid-column: auto !important;
+    grid-row: auto !important;
+  }
+
+  .ledger__amt,
+  .ledger__row .num {
+    justify-self: end !important;
+    text-align: right;
+  }
+
+  .ledger__row {
+    grid-template-columns: 2fr 2.4fr 1.1fr 1.4fr;
+  }
+
+  .ledger__row.is-over {
+    background: none;
+  }
+
+  .settle__tag,
+  .settle__over {
+    background: #fff !important;
+    color: #000 !important;
+    border: 1px solid #000;
+    font-size: 7.5pt;
+  }
+
+  .settle__meta {
+    color: #000;
+    font-size: 7pt;
+  }
+
+  .paysum--4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .is-over {
+    color: #000;
+  }
+
+  /* collaborator statements: clean black-and-white single page */
+  .statement-page__bar,
+  .statement-page__status,
+  .resend {
+    display: none !important;
+  }
+
+  .statement {
+    max-width: none;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    background: #fff;
+  }
+
+  .statement__head {
+    border-bottom: 2px solid #000;
+  }
+
+  .statement__head > div {
+    padding: 0 0 14px;
+  }
+
+  .statement__head > div + div {
+    border-left: 0;
+    padding-left: 16px;
+  }
+
+  .statement__brand .wordmark__blocks i {
+    background: #fff;
+  }
+
+  .statement__to {
+    padding: 18px 0;
+    border-bottom: 1px solid #000;
+  }
+
+  .statement__swatch {
+    background: #fff;
+    border: 1px solid #000;
+    width: 40px;
+    height: 40px;
+    font-size: 10pt;
+  }
+
+  .statement__name {
+    font-size: 20pt;
+  }
+
+  .statement__table th,
+  .statement__table td {
+    padding: 7px 0;
+    font-size: 9.5pt;
+    border-bottom: 1px solid #000;
+  }
+
+  .statement__table th + th,
+  .statement__table td + td {
+    padding-left: 12px;
+  }
+
+  .statement__table thead th {
+    color: #000;
+    border-bottom: 2px solid #000;
+  }
+
+  .statement__table tr {
+    break-inside: avoid;
+  }
+
+  .statement__table tfoot th,
+  .statement__table tfoot td {
+    border-top: 2px solid #000;
+    border-bottom: 3px double #000;
+  }
+
+  .statement__total {
+    font-size: 14pt !important;
+  }
+
+  .statement__replaces {
+    color: #000;
+  }
+
+  /* "Download all statements": only the bundle, one statement per page */
+  body[data-print='statements'] .report > :not(.print-bundle) {
+    display: none !important;
+  }
+
+  body[data-print='statements'] .print-bundle {
+    display: block !important;
+  }
+
+  .print-bundle .statement {
+    break-after: page;
+    page-break-after: always;
+  }
+
+  .print-bundle .statement:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+
+  body:not([data-print='statements']) .print-bundle {
+    display: none !important;
+  }
+
+  .settle__tag--settled {
+    outline: 1px solid #000;
+  }
+}
