@@ -5,7 +5,7 @@ import { dirname, join, relative, resolve, sep } from 'node:path'
 const DOMAIN = resolve('src/domain')
 // Bounded-context rules: context → contexts it must not import (docs/domain-design.md §1, §5).
 // Channel is upstream of both; Sharing is upstream of Reporting; Reporting receives Sharing data via snapshots.
-const FORBIDDEN = { channel: ['sharing', 'reporting'], sharing: ['reporting'], reporting: ['sharing'] }
+const FORBIDDEN = { channel: ['revenue-sharing', 'reporting'], 'revenue-sharing': ['reporting'], reporting: ['revenue-sharing'] }
 const contextOf = (p) => relative(DOMAIN, p).split(sep)[0]
 const BANNED = [/\bDate\.now\b/, /\bnew\s+Date\s*\(/, /\bMath\.random\b/, /\bcrypto\b/, /\bwindow\b/,
   /\bdocument\b/, /\bprocess\b/, /\bimport\.meta\b/]

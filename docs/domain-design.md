@@ -105,7 +105,7 @@ flowchart LR
 | **Revenue Sharing** | The agreements: who gets what percentage of which videos. | **Downstream** of Channel (video ids, owner email). **Upstream supplier** to Reporting. |
 | **Reporting & Payouts** | Turns frozen revenue and the agreements in force into immutable monthly revisions, statements and an append-only payment ledger. | **Downstream customer** of Sharing. It never imports `Split`/`Collaborator` types. The application layer translates them into Reporting-owned `SplitSnapshot`/`PartySnapshot`, which is a lightweight ACL. Snapshots give SPL-10 and COL-6 by construction. |
 
-Contexts are **folders**, not packages. A tiny **shared kernel** (`domain/shared`) holds ids, `Cents`/`Bps`, `Period`, `Result` and `Meta`. A lint/import check stops `reporting/` importing from `sharing/` (see §5).
+Contexts are **folders**, not packages. A tiny **shared kernel** (`domain/shared`) holds ids, `Cents`/`Bps`, `Period`, `Result`, `Meta` and `Email`. The Revenue Sharing context lives in `domain/revenue-sharing`. A lint/import check stops `reporting/` importing from `revenue-sharing/` (see §5).
 
 ---
 
@@ -463,7 +463,7 @@ Legend: **AM** = aggregate method · **VO** = VO factory · **DS** = domain serv
     ├── domain/                       # PURE TS. imports only from src/domain/**
     │   ├── shared/   ids.ts  numbers.ts  period.ts  result.ts  meta.ts  email.ts  index.ts
     │   ├── channel/  account.ts  video.ts  index.ts
-    │   ├── sharing/  share.ts  split.ts  role.ts  collaborator.ts  policies.ts  index.ts
+    │   ├── revenue-sharing/  share.ts  split.ts  role.ts  collaborator.ts  policies.ts  index.ts
     │   └── reporting/
     │       ├── frozen-revenue.ts  snapshots.ts  allocate.ts
     │       ├── monthly-report.ts  payment-ledger.ts
@@ -499,7 +499,7 @@ flowchart TB
   UI -- "composition root only" --> INF
 ```
 
-- **domain** imports only `src/domain/**`. It must not import React, mock data, `window`/`document`, `Date.now`, `new Date()` or `Math.random`. Inside the domain, `reporting/` must not import `sharing/` (translation happens in the application layer). Both may import `shared/`.
+- **domain** imports only `src/domain/**`. It must not import React, mock data, `window`/`document`, `Date.now`, `new Date()` or `Math.random`. Inside the domain, `reporting/` must not import `revenue-sharing/` (translation happens in the application layer). Both may import `shared/`.
 - **application** imports domain only. Use cases are `(ports: Ports) => (cmd) => Promise<Result<T>>`, and each modifies **one** aggregate.
 - **infrastructure** implements the port interfaces. Only the composition root (`ui/providers.tsx`) imports it.
 - **Next.js server/client:** the domain and application layers are isomorphic (no DOM, no Node APIs), so they run in client components today (in-memory repos) and in server actions / route handlers later, when persistence arrives. Only the infrastructure adapters and the composition root change.
@@ -507,7 +507,7 @@ flowchart TB
 
 **Keeping it honest:**
 1. `scripts/check-domain-imports.mjs` (about 30 lines), run as `pnpm check:deps` before `test`:
-   - every import in `src/domain/**` resolves inside `src/domain`, and `reporting/**` never imports `sharing/**`;
+   - every import in `src/domain/**` resolves inside `src/domain`, and `reporting/**` never imports `revenue-sharing/**`;
    - `src/application/**` never imports `infrastructure`/`ui` or bare packages;
    - fail on `Date.now`, `new Date(`, `Math.random`, `crypto.`, `window.`, `document.`, `import.meta.env` in `src/domain/**`.
 2. `tsconfig` gives `src/domain` its own `lib: ["ES2022"]` with **no `DOM`** (via a small `src/domain/tsconfig.json` used by `tsc -p`). Browser globals then fail to type-check, so the compiler enforces the rule for free.
@@ -544,9 +544,9 @@ export const markPaid = ({ repos, ids, clock }: Ports) =>
 ```
 src/domain/shared/period.test.ts          src/domain/shared/result.test.ts
 src/domain/channel/account.test.ts
-src/domain/sharing/share.test.ts          src/domain/sharing/split.test.ts
-src/domain/sharing/email.test.ts          src/domain/sharing/role.test.ts
-src/domain/sharing/collaborator.test.ts   src/domain/sharing/policies.test.ts
+src/domain/revenue-sharing/share.test.ts          src/domain/revenue-sharing/split.test.ts
+src/domain/shared/email.test.ts           src/domain/revenue-sharing/role.test.ts
+src/domain/revenue-sharing/collaborator.test.ts   src/domain/revenue-sharing/policies.test.ts
 src/domain/reporting/frozen-revenue.test.ts   src/domain/reporting/allocate.test.ts
 src/domain/reporting/monthly-report.test.ts   src/domain/reporting/payment-ledger.test.ts
 src/domain/reporting/policies.test.ts         src/domain/reporting/projections.test.ts
@@ -559,7 +559,7 @@ src/domain/test-fixtures.ts               # builders: aSplit(), aReport(), meta(
 |---|---|
 | `pnpm test` | pass |
 | `pnpm typecheck:domain` | be clean, with every `@ts-expect-error` still used |
-| `pnpm check:deps` | pass (also enforces the bounded-context import rules: `channel` ↛ `sharing`/`reporting`, `sharing` ↛ `reporting`, `reporting` ↛ `sharing`) |
+| `pnpm check:deps` | pass (also enforces the bounded-context import rules: `channel` ↛ `revenue-sharing`/`reporting`, `revenue-sharing` ↛ `reporting`, `reporting` ↛ `revenue-sharing`) |
 | `pnpm crap:domain` | report **no function with CRAP > 5** in implementation files. Refactor (extract small validators, use lookup tables, split branches) rather than suppress. `test-fixtures.ts` is exempt. |
 | `pnpm lint`, `pnpm build` | pass |
 
@@ -646,18 +646,18 @@ Helper: `expectRejected(result, 'SPL-3')` asserts `!result.ok` and that some rea
 | Prototype | Goes to | Lift as-is? |
 |---|---|---|
 | `state/domain.js` `OK` / `fail` / `all` | `domain/shared/result.ts` | **Yes.** Same `{ ok, reasons }` shape, now typed as `Result<T>` with `value` on success. |
-| `domain.js` `check*` guards | Rules for one aggregate → aggregate methods. Cross-aggregate rules (`checkSaveSplit` SPL-7/8, `checkDeleteCollaborator` COL-4, `checkGenerate` REP-1, `checkLedgerTarget` PAY-5) → `sharing/policies.ts`, `reporting/policies.ts` and use cases. | Logic yes, signatures no. Policies take typed inputs instead of the whole `state`, and no `VIDEOS`/`ME` imports. |
+| `domain.js` `check*` guards | Rules for one aggregate → aggregate methods. Cross-aggregate rules (`checkSaveSplit` SPL-7/8, `checkDeleteCollaborator` COL-4, `checkGenerate` REP-1, `checkLedgerTarget` PAY-5) → `revenue-sharing/policies.ts`, `reporting/policies.ts` and use cases. | Logic yes, signatures no. Policies take typed inputs instead of the whole `state`, and no `VIDEOS`/`ME` imports. |
 | `domain.js` `generate` / `recalculate` | `MonthlyReport.generate` / `recalculate` | **Rework.** The prototype *overwrites* `lines` and keeps only totals in `history`, which violates REP-7. Keep the full `revisions[]`. |
 | `domain.js` `pay` / `settle` / `reverse` | `PaymentLedger.markPaid` / `recordSettlement` / `reverse` | Mostly. `reverse` now names its target `EntryId` (PAY-3). "Undo latest" becomes a UI choice. Dollars → `Cents`. |
 | `domain.js` `markSent`, `diffLines` | `MonthlyReport.markSent`; `diffLines` → private helper for the `recalculated` activity entry | Yes, with cents and `OWNER_ID`. |
 | `domain.js` `reducer`, `checkAction`, `initState`, `rejections[]` | Deleted. Replaced by use cases + `infrastructure/memory/store.ts`. `initState` → `infrastructure/seed/replay.ts` (replay through use cases; this smoke-tests the domain at startup). Rejections → UI toast state. | No. |
-| `lib/shares.js` `validateSplit`, `MIN_SHARE`, `FULL`, `totalOf` | `sharing/split.ts`, `shared/numbers.ts` | **Yes, nearly verbatim** plus types. `ME.id` → `OWNER_ID`. |
+| `lib/shares.js` `validateSplit`, `MIN_SHARE`, `FULL`, `totalOf` | `revenue-sharing/split.ts`, `shared/numbers.ts` | **Yes, nearly verbatim** plus types. `ME.id` → `OWNER_ID`. |
 | `lib/shares.js` `setShare`, `moveDivider`, `splitEvenly`, `parsePercent`, `STEP*`, `DRAG_SNAP` | `ui/` editor helpers | Yes. These are editor ergonomics, not invariants. |
 | `lib/ledger.js` `computeLedger` | `reporting/allocate.ts` | **The core math lifts as-is** (per-video rounding, owner remainder, unsplit → owner). Remove the dollar conversions and `identityOf` (color/initials are UI). Take `PartySnapshot[]` instead of a `people` lookup. |
 | `lib/ledger.js` `freezeRevenue`, `frozenVideos`, `revenueFor` | `reporting/frozen-revenue.ts` | Yes, cents only, plus title snapshots. |
 | `lib/payments.js` `openEntries`, `ledgerStatus`, `reportRows`, `reportTotals`, `recordsFor` | `PaymentLedger.openEntries`, `reporting/projections.ts` | **Yes.** Swap the stack-pop logic in `openEntries` for `reversesEntryId` matching. `STATUS_LABEL` stays in the UI. |
 | `lib/statements.js` `totalAtRevision`, `needsResend`, `statementLines` | `reporting/projections.ts` | Yes. Read from `revisions[]`. `printWithTitle` → `ui/` (uses `document`). |
-| `lib/collaborators.js` `EMAIL_RE`, `normalizeEmail`, `isValidEmail`, `emailConflict`, `validateCollaborator` | `shared/email.ts`, `sharing/policies.ts`, `Collaborator.register/edit` | **Yes.** The owner email becomes a parameter. Add the COL-3 check against `ROLES` (moved from `components/CollaboratorForm.jsx`). |
+| `lib/collaborators.js` `EMAIL_RE`, `normalizeEmail`, `isValidEmail`, `emailConflict`, `validateCollaborator` | `shared/email.ts`, `revenue-sharing/policies.ts`, `Collaborator.register/edit` | **Yes.** The owner email becomes a parameter. Add the COL-3 check against `ROLES` (moved from `components/CollaboratorForm.jsx`). |
 | `lib/periods.js` | `shared/period.ts` | Rewrite to take `today: IsoDate` (it reads mock `TODAY` today). "Months with data" → `ChannelCatalog`. |
 | `lib/format.js`, `lib/router.js` | stay in `ui/` | Yes, they are UI only. |
 | `data/mock.js` | `infrastructure/seed/mock.ts` | Yes. `PALETTE`/colors become UI, keyed by `partyId`. `'me'` → `OWNER_ID` in the seed adapter. |

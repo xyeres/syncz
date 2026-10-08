@@ -18,9 +18,9 @@ import type { Period } from './shared/period'
 import type { Reason, ReasonCode, Result } from './shared/result'
 import { Account, type AccountInput } from './channel/account'
 import { Email } from './shared/email'
-import { ROLES } from './sharing/role'
-import { Split, type SplitInput } from './sharing/split'
-import { Collaborator, type CollaboratorInput } from './sharing/collaborator'
+import { ROLES } from './revenue-sharing/role'
+import { Split, type SplitInput } from './revenue-sharing/split'
+import { Collaborator, type CollaboratorInput } from './revenue-sharing/collaborator'
 
 // ── ids (as-casts live only in tests and at the edges) ──────────────────────
 export const accountId = (s: string) => s as AccountId
